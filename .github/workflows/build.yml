@@ -1,0 +1,39 @@
+name: Build LimpiaAccesos
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Compilar LimpiaAccesos.cs
+        shell: pwsh
+        run: |
+          $fuente = Get-ChildItem -Path . -Recurse -Filter LimpiaAccesos.cs | Select-Object -First 1
+          if (-not $fuente) {
+            Write-Error "No se encontro LimpiaAccesos.cs en el repositorio"
+            exit 1
+          }
+          Write-Host "Compilando: $($fuente.FullName)"
+
+          New-Item -ItemType Directory -Force -Path salida | Out-Null
+
+          $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $csc /nologo /target:winexe /out:salida\LimpiaAccesos.exe `
+            /r:System.Windows.Forms.dll /r:System.Drawing.dll $fuente.FullName
+
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Subir el ejecutable
+        uses: actions/upload-artifact@v4
+        with:
+          name: LimpiaAccesos
+          path: salida/LimpiaAccesos.exe
+          if-no-files-found: error
